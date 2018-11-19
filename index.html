@@ -1,1 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bing Bong Sing-Along</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/13.3.11/Tone.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/midi-parser-js@3.1.4/src/midi-parser.js"></script>
+</head>
+<body>
 
+<input type="file" id="filereader"/>
+
+</body>
+<script type="text/javascript">
+
+const asBingBongSchedule = track => {
+  const playable = track.reduce((state, event) => {
+
+    state.time += event.deltaTime
+    state.schedule.push({
+      track: 'bong',
+      time: state.time / 1000
+    })
+
+    return state
+
+  }, {
+    time: 0,
+    schedule: []
+  })
+
+  return playable
+}
+
+const playSchedule = schedule => {
+  playable.schedule.forEach(event => {
+    players.bong.start(event.time)
+  })
+}
+
+window.onload = () => {
+  const players = {
+    bing: new Tone.Player({url: './data/bing.mp3'}),
+    bong: new Tone.Player({url: './data/bong.mp3'})
+  }
+
+  const source = document.getElementById('filereader');
+  MIDIParser.parse(source, obj => {
+
+    const track = obj.track[1].event
+    const playable = asBingBongSchedule(track)
+
+    playSchedule(playable.schedule)
+  })
+
+  players.bing.toMaster()
+  players.bong.toMaster()
+
+  setInterval(() => {
+    players.bing.start('+0.5')
+    players.bong.start('+1')
+    players.bong.start('+1.5')
+    players.bing.start('+2.0')
+    players.bing.start('+2.25')
+    players.bing.start('+2.5')
+    players.bong.start('+3')
+    players.bong.start('+3.5')
+
+  }, 4000)
+}
+
+</script>
+</html>
