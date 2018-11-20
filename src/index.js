@@ -1,45 +1,7 @@
 
-const ticksToSeconds = (ticks, header) => {
-  return (60 / header.bpm) * (ticks / header.PPQ);
-}
-
-const midiAsSchedule = midi => {
-  const tracks = midi.track
-
-  const schedules = tracks.map(track => {
-    const playable = track.event.reduce((state, event) => {
-
-      console.log(event.type)
-      console.log(event.metaType)
-
-      state.time += event.deltaTime
-      state.schedule.push({
-        track: 'bong',
-        time: state.time / 1000
-      })
-
-      return state
-
-    }, {
-      time: 0,
-      schedule: []
-    })
-
-    return playable.schedule
-  })
-
-  const events = []
-
-  for (const schedule of schedules) {
-    events.push(...schedule)
-  }
-
-  return events
-}
-
 const playSchedule = (schedule, players) => {
   schedule.forEach(event => {
-    players.bong.start(event.time)
+    players[event.track].start(event.time)
   })
 }
 
@@ -47,7 +9,28 @@ const playSchedule = (schedule, players) => {
 // bong: G# (lower)
 // [0.83, 1.05]
 
-const readMidi = async event => {
+const createBingBongSchedule = midi => {
+  const schedule = []
+
+  for (const track of midi.tracks) {
+    let state = {
+      lastNote: -Infinity
+    }
+    for (const note of track.notes) {
+      const isGteLastNote = note.midi >= state.lastNote
+      state.lastNote = note.midi
+
+      schedule.push({
+        time: note.time,
+        track: isGteLastNote ? 'bing' : 'bong'
+      })
+    }
+  }
+
+  return schedule
+}
+
+const readMidiFromFile = async event => {
   const file = event.target.files[0]
   const reader = new FileReader()
 
@@ -56,11 +39,11 @@ const readMidi = async event => {
       resolve(MidiConvert.parse(event.target.result))
     }
 
-    reader.readAsText(file)
+    reader.readAsBinaryString(file)
   })
 }
 
-const demo = () => {
+const demo = players => {
   setInterval(() => {
     players.bing.start('+0.5')
     players.bong.start('+1')
@@ -82,17 +65,16 @@ const main = async () => {
   const source = document.getElementById('filereader');
 
   source.addEventListener('change', async event => {
-    const track = await readMidi(event)
-    console.log(track)
-    console.log('+++ +++ +++')
+    const midi = await readMidiFromFile(event)
+    const schedule = createBingBongSchedule(midi)
+
+    playSchedule(schedule, players)
   })
+
+  //demo(players)
 
   players.bing.toMaster()
   players.bong.toMaster()
-
-
-  //playSchedule(track, players)
-
 }
 
 window.onload = () => {
