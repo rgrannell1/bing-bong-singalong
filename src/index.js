@@ -1,7 +1,7 @@
 
 const playSchedule = (schedule, players) => {
   schedule.forEach(event => {
-    players[event.track].start(event.time)
+    players[event.track](event.midi).start(event.time)
   })
 }
 
@@ -22,6 +22,7 @@ const createBingBongSchedule = midi => {
 
       schedule.push({
         time: note.time,
+        note: note.midi,
         track: isGteLastNote ? 'bing' : 'bong'
       })
     }
@@ -45,23 +46,51 @@ const readMidiFromFile = async event => {
 
 const demo = players => {
   setInterval(() => {
-    players.bing.start('+0.5')
-    players.bong.start('+1')
-    players.bong.start('+1.5')
-    players.bing.start('+2.0')
-    players.bing.start('+2.25')
-    players.bing.start('+2.5')
-    players.bong.start('+3')
-    players.bong.start('+3.5')
+    players.bing().start('+0.5')
+    players.bong().start('+1')
+    players.bong().start('+1.5')
+    players.bing().start('+2.0')
+    players.bing().start('+2.25')
+    players.bing().start('+2.5')
+    players.bong().start('+3')
+    players.bong().start('+3.5')
   }, 4000)
 }
 
-const main = async () => {
-  const players = {
-    bing: new Tone.Player({url: './data/bing.mp3', playbackRate: 1}),
-    bong: new Tone.Player({url: './data/bong.mp3', playbackRate: 1})
-  }
+const percent = 0.05
 
+const files = {}
+files.bing = new Tone.Player({url: './data/bing.mp3'})
+files.bong = new Tone.Player({url: './data/bong.mp3'})
+
+const players = {
+  bing (midi) {
+    // diff from C4
+    const centre = 60
+    if (!midi) {
+      return files.bing
+    }
+    const diff = Math.abs(centre - midi)
+    const rate = 1 + (diff * percent)
+
+    files.bing.playbackRate = rate
+    return files.bing
+  },
+  bong (midi) {
+    // diff from G#7
+    const centre = 56
+    if (!midi) {
+      return files.bong
+    }
+    const diff = Math.abs(centre - midi)
+    const rate = 1 + (diff * percent)
+
+    files.bong.playbackRate = rate
+    return files.bong
+  }
+}
+
+const main = async () => {
   const source = document.getElementById('filereader');
 
   source.addEventListener('change', async event => {
@@ -73,8 +102,8 @@ const main = async () => {
 
   //demo(players)
 
-  players.bing.toMaster()
-  players.bong.toMaster()
+  players.bing().toMaster()
+  players.bong().toMaster()
 }
 
 window.onload = () => {
