@@ -9,7 +9,26 @@ const playSchedule = (schedule, players) => {
 // bong: G# (lower)
 // [0.83, 1.05]
 
+const asTime = note => {
+  return note.time
+}
+
+const createTrack = midi => {
+
+  const synth = new Tone.PolySynth(8).toMaster()
+
+  for (const track of midi.tracks) {
+    new Tone.Part((time, note) => {
+      synth.triggerAttackRelease(note.name, note.duration, time, note.velocity / 2)
+    }, track.notes).start()
+  }
+
+  Tone.Transport.start()
+}
+
 const createBingBongSchedule = midi => {
+  Tone.Transport.bpm.value = midi.header.bpm
+
   const schedule = []
 
   for (const track of midi.tracks) {
@@ -21,7 +40,7 @@ const createBingBongSchedule = midi => {
       state.lastNote = note.midi
 
       schedule.push({
-        time: note.time,
+        time: asTime(note),
         note: note.midi,
         track: isGteLastNote ? 'bing' : 'bong'
       })
@@ -96,6 +115,7 @@ const main = async () => {
   source.addEventListener('change', async event => {
     const midi = await readMidiFromFile(event)
     const schedule = createBingBongSchedule(midi)
+    createTrack(midi)
 
     playSchedule(schedule, players)
   })
