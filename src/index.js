@@ -5,8 +5,8 @@ const playSchedule = (schedule, players) => {
   })
 }
 
-// bing: C
-// bong: G# (lower)
+// bing: C (60)
+// bong: G# (56)
 // [0.83, 1.05]
 
 const asTime = note => {
@@ -14,12 +14,25 @@ const asTime = note => {
 }
 
 const createTrack = midi => {
-
   const synth = new Tone.PolySynth(8).toMaster()
 
   for (const track of midi.tracks) {
     new Tone.Part((time, note) => {
-      synth.triggerAttackRelease(note.name, note.duration, time, note.velocity / 2)
+
+    const diff = (note.midi - 56) * 0.1
+
+    players.bong
+      .disconnect()
+
+    players.bong
+      .chain(
+        new Tone.PitchShift({pitch: diff}),
+        Tone.Master
+      )
+      .start(time)
+
+//    synth.triggerAttackRelease(note.name, note.duration, time, note.velocity).chain(vol, Tone.Master)
+
     }, track.notes).start()
   }
 
@@ -65,48 +78,24 @@ const readMidiFromFile = async event => {
 
 const demo = players => {
   setInterval(() => {
-    players.bing().start('+0.5')
-    players.bong().start('+1')
-    players.bong().start('+1.5')
-    players.bing().start('+2.0')
-    players.bing().start('+2.25')
-    players.bing().start('+2.5')
-    players.bong().start('+3')
-    players.bong().start('+3.5')
+    players.bing.start('+0.5')
+    players.bong.start('+1')
+    players.bong.start('+1.5')
+    players.bing.start('+2.0')
+    players.bing.start('+2.25')
+    players.bing.start('+2.5')
+    players.bong.start('+3')
+    players.bong.start('+3.5')
   }, 4000)
 }
 
 const percent = 0.05
 
 const files = {}
-files.bing = new Tone.Player({url: './data/bing.mp3'})
-files.bong = new Tone.Player({url: './data/bong.mp3'})
 
 const players = {
-  bing (midi) {
-    // diff from C4
-    const centre = 60
-    if (!midi) {
-      return files.bing
-    }
-    const diff = Math.abs(centre - midi)
-    const rate = 1 + (diff * percent)
-
-    files.bing.playbackRate = rate
-    return files.bing
-  },
-  bong (midi) {
-    // diff from G#7
-    const centre = 56
-    if (!midi) {
-      return files.bong
-    }
-    const diff = Math.abs(centre - midi)
-    const rate = 1 + (diff * percent)
-
-    files.bong.playbackRate = rate
-    return files.bong
-  }
+  bing: new Tone.Player({url: './data/bing.mp3'}),
+  bong: new Tone.Player({url: './data/bong.mp3'})
 }
 
 const main = async () => {
@@ -114,16 +103,13 @@ const main = async () => {
 
   source.addEventListener('change', async event => {
     const midi = await readMidiFromFile(event)
-    const schedule = createBingBongSchedule(midi)
     createTrack(midi)
-
-    playSchedule(schedule, players)
   })
 
   //demo(players)
 
-  players.bing().toMaster()
-  players.bong().toMaster()
+  players.bing.toMaster()
+  players.bong.toMaster()
 }
 
 window.onload = () => {
