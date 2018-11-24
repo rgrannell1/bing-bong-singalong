@@ -13,25 +13,41 @@ const asTime = note => {
   return note.time
 }
 
+const constants = {
+  tones: {
+    bing: 60,
+    bong: 56,
+  },
+  tonelessness: 0.2
+}
+
 const createTrack = midi => {
-  const synth = new Tone.PolySynth(8).toMaster()
+  const synth = new Tone.PolySynth(8)
+    .connect(new Tone.Volume(-10))
+    .toMaster()
 
   for (const track of midi.tracks) {
+    const state = {lastNote: -Infinity}
+
     new Tone.Part((time, note) => {
+      const player = note.midi >= state.lastNote
+        ? 'bing'
+        : 'bong'
 
-    const diff = (note.midi - 56) * 0.1
+      const diff = (note.midi - constants.tones[player]) * constants.tonelessness
+      state.lastNote = note.midi
 
-    players.bong
-      .disconnect()
+      players[player]
+        .disconnect()
 
-    players.bong
-      .chain(
-        new Tone.PitchShift({pitch: diff}),
-        Tone.Master
-      )
-      .start(time)
+      players[player]
+        .chain(
+          new Tone.PitchShift({pitch: diff}),
+          Tone.Master
+        )
+        .start(time)
 
-//    synth.triggerAttackRelease(note.name, note.duration, time, note.velocity).chain(vol, Tone.Master)
+      synth.triggerAttackRelease(note.name, note.duration, time, note.velocity)
 
     }, track.notes).start()
   }
