@@ -1,82 +1,64 @@
 
-const playSchedule = (schedule, players) => {
-  schedule.forEach(event => {
-    players[event.track](event.midi).start(event.time)
-  })
-}
-
-// bing: C (60)
-// bong: G# (56)
-// [0.83, 1.05]
-
-const asTime = note => {
-  return note.time
-}
-
 const constants = {
   tones: {
     bing: 60,
     bong: 56,
   },
-  tonelessness: 0.2
+  tonelessness: {
+    bing: 0.2,
+    bong: 0.3
+  }
+}
+
+const randomOffset = () => {
+  return (Math.random() - (1 / 2)) / 2
+}
+
+const offsets = {}
+
+offsets.bing = diff => {
+  return diff * constants.tonelessness.bing + randomOffset()
+}
+
+offsets.bong = diff => {
+  return diff * constants.tonelessness.bong + randomOffset()
+}
+
+const playNote = (track) => {
+  const state = {lastNote: -Infinity}
+
+  const synth = new Tone.PolySynth(8)
+    .toMaster()
+
+  synth.volume.value = -25
+
+  new Tone.Part((time, note) => {
+    const player = note.midi >= state.lastNote ? 'bing' : 'bong'
+
+    const diff = (note.midi - constants.tones[player])
+    state.lastNote = note.midi
+
+    players.bing.disconnect()
+    players.bong.disconnect()
+
+    players[player]
+      .chain(
+        new Tone.PitchShift({pitch: offsets[player](diff, player)}),
+        Tone.Master
+      )
+      .start(time)
+
+    synth.triggerAttackRelease(note.name, note.duration, time, note.velocity)
+
+  }, track.notes).start()
 }
 
 const createTrack = midi => {
-  const synth = new Tone.PolySynth(8)
-    .connect(new Tone.Volume(-10))
-    .toMaster()
-
   for (const track of midi.tracks) {
-    const state = {lastNote: -Infinity}
-
-    new Tone.Part((time, note) => {
-      const player = note.midi >= state.lastNote
-        ? 'bing'
-        : 'bong'
-
-      const diff = (note.midi - constants.tones[player]) * constants.tonelessness
-      state.lastNote = note.midi
-
-      players[player]
-        .disconnect()
-
-      players[player]
-        .chain(
-          new Tone.PitchShift({pitch: diff}),
-          Tone.Master
-        )
-        .start(time)
-
-      synth.triggerAttackRelease(note.name, note.duration, time, note.velocity)
-
-    }, track.notes).start()
+    playNote(track)
   }
 
   Tone.Transport.start()
-}
-
-const createBingBongSchedule = midi => {
-  Tone.Transport.bpm.value = midi.header.bpm
-
-  const schedule = []
-
-  for (const track of midi.tracks) {
-    let state = {
-      lastNote: -Infinity
-    }
-    for (const note of track.notes) {
-      const isGteLastNote = note.midi >= state.lastNote
-      state.lastNote = note.midi
-
-      schedule.push({
-        time: asTime(note),
-        note: note.midi,
-        track: isGteLastNote ? 'bing' : 'bong'
-      })
-    }
-  }
-
-  return schedule
 }
 
 const readMidiFromFile = async event => {
@@ -119,6 +101,7 @@ const main = async () => {
 
   source.addEventListener('change', async event => {
     const midi = await readMidiFromFile(event)
+    Tone.Transport.bpm.value = midi.header.bpm
     createTrack(midi)
   })
 
