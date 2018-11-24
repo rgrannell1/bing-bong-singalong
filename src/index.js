@@ -1,4 +1,6 @@
 
+'use strict'
+
 const constants = {
   tones: {
     bing: 60,
@@ -7,6 +9,10 @@ const constants = {
   tonelessness: {
     bing: 0.2,
     bong: 0.3
+  },
+  paths: {
+    bing: './data/bing.mp3',
+    bong: './data/bong.mp3'
   }
 }
 
@@ -24,18 +30,16 @@ offsets.bong = diff => {
   return diff * constants.tonelessness.bong + randomOffset()
 }
 
+const synth = new Tone.PolySynth(8).toMaster()
+synth.volume.value = -55
+
 const playNote = (track) => {
   const state = {lastNote: -Infinity}
-
-  const synth = new Tone.PolySynth(8)
-    .toMaster()
-
-  synth.volume.value = -25
 
   new Tone.Part((time, note) => {
     const player = note.midi >= state.lastNote ? 'bing' : 'bong'
 
-    const diff = (note.midi - constants.tones[player])
+    const diffFromPlayerNote = note.midi - constants.tones[player]
     state.lastNote = note.midi
 
     players.bing.disconnect()
@@ -43,7 +47,7 @@ const playNote = (track) => {
 
     players[player]
       .chain(
-        new Tone.PitchShift({pitch: offsets[player](diff, player)}),
+        new Tone.PitchShift({pitch: offsets[player](diffFromPlayerNote, player)}),
         Tone.Master
       )
       .start(time)
@@ -53,15 +57,7 @@ const playNote = (track) => {
   }, track.notes).start()
 }
 
-const createTrack = midi => {
-  for (const track of midi.tracks) {
-    playNote(track)
-  }
-
-  Tone.Transport.start()
-}
-
-const readMidiFromFile = async event => {
+const readMidi = async event => {
   const file = event.target.files[0]
   const reader = new FileReader()
 
@@ -74,41 +70,27 @@ const readMidiFromFile = async event => {
   })
 }
 
-const demo = players => {
-  setInterval(() => {
-    players.bing.start('+0.5')
-    players.bong.start('+1')
-    players.bong.start('+1.5')
-    players.bing.start('+2.0')
-    players.bing.start('+2.25')
-    players.bing.start('+2.5')
-    players.bong.start('+3')
-    players.bong.start('+3.5')
-  }, 4000)
-}
-
-const percent = 0.05
-
-const files = {}
-
 const players = {
-  bing: new Tone.Player({url: './data/bing.mp3'}),
-  bong: new Tone.Player({url: './data/bong.mp3'})
+  bing: new Tone.Player({url: constants.paths.bing}),
+  bong: new Tone.Player({url: constants.paths.bong})
 }
 
 const main = async () => {
   const source = document.getElementById('filereader');
 
   source.addEventListener('change', async event => {
-    const midi = await readMidiFromFile(event)
+    players.bing.toMaster()
+    players.bong.toMaster()
+
+    const midi = await readMidi(event)
     Tone.Transport.bpm.value = midi.header.bpm
-    createTrack(midi)
+
+    for (const track of midi.tracks) {
+      playNote(track)
+    }
+
+    Tone.Transport.start()
   })
-
-  //demo(players)
-
-  players.bing.toMaster()
-  players.bong.toMaster()
 }
 
 window.onload = () => {
